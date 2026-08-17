@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
+from employees.models import Employee
 from .models import Task
 from .serializers import TaskSerializer
 
@@ -12,8 +13,8 @@ class TaskListCreateView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        tasks = Task.objects.filter(
-            user=request.user
+        tasks= Task.objects.filter(
+            employee=request.user
         ).order_by("-created_at")
 
         serializer = TaskSerializer(tasks, many=True)
@@ -24,7 +25,7 @@ class TaskListCreateView(APIView):
         serializer = TaskSerializer(data=request.data)
 
         if serializer.is_valid():
-            task = serializer.save(user=request.user)
+            task = serializer.save(employee=request.user)
 
             return Response(
                 TaskSerializer(task).data,
@@ -44,7 +45,7 @@ class TaskDetailView(APIView):
         return get_object_or_404(
             Task,
             pk=pk,
-            user=request.user
+            employee=request.user
         )
 
     def get(self, request, pk):
