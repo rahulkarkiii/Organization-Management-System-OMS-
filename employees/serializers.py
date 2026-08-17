@@ -11,7 +11,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "phone_number",
             "address",
             "date_of_birth",
-            "joining_date",
+            "joined_date",
             "position",
             "salary",
             "is_active",
@@ -20,7 +20,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "joining_date",
+            "joined_date",
             "created_at",
             "updated_at"
         ]
