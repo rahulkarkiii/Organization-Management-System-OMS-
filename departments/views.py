@@ -1,16 +1,25 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from .models import Department
 from .serializers import DepartmentSerializer
 
 class DepartmentsListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
     def get(self, request):
         departments = Department.objects.all().order_by("-created_at")
         serializer = DepartmentSerializer(departments, many=True)
         return Response(serializer.data)
 
     def post(self, request):
+        if request.user.role not in ["manager", "admin"]:
+            return Response(
+                {
+                    "error": "Permission denied."
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
         serializer = DepartmentSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -24,6 +33,7 @@ class DepartmentsListCreateView(APIView):
         )
 
 class DepartmentDetailView(APIView):
+    permission_classes = [IsAuthenticated]
     def get_department(self, pk):
         try:
             return Department.objects.get(pk=pk)
@@ -41,6 +51,13 @@ class DepartmentDetailView(APIView):
         return Response(serializer.data)
 
     def put(self, request, pk):
+        if request.user.role not in ["manager", "admin"]:
+            return Response(
+                {
+                    "error": "Permission denied."
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
         department = self.get_department(pk)
         if department is None:
             return Response(
@@ -62,6 +79,13 @@ class DepartmentDetailView(APIView):
         )
 
     def delete(self, request, pk):
+        if request.user.role not in ["manager", "admin"]:
+            return Response(
+                {
+                    "error": "Permission denied."
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
         department = self.get_department(pk)
         if department is None:
             return Response(
