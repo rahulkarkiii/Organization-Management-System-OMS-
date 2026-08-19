@@ -46,8 +46,6 @@ class AttendanceListCreateView(APIView):
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        # Manager/Admin attendance
         if request.user.role in ["manager", "admin"]:
 
             employee_id = request.data.get("employee")
@@ -105,10 +103,6 @@ class AttendanceDetailView(APIView):
         )
 
     def get(self, request, pk):
-        """
-        View a single attendance record.
-        """
-
         attendance = self.get_attendance(
             request,
             pk
@@ -155,14 +149,6 @@ class AttendanceDetailView(APIView):
         )
 
     def delete(self, request, pk):
-        """
-        Admin:
-            Can delete attendance.
-
-        Manager/Employee:
-            Cannot delete attendance.
-        """
-
         if request.user.role != "admin":
             return Response(
                 {
