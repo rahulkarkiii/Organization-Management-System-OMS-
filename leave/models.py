@@ -1,5 +1,6 @@
 from django.db import models
-from accounts.models import User
+from django.conf import settings
+
 class Leave(models.Model):
     LEAVE_TYPE_CHOICES = [
         ("annual", "Annual Leave"),
@@ -15,7 +16,7 @@ class Leave(models.Model):
         ("cancelled", "Cancelled"),
     ]
     employee = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="leave",
     )
@@ -38,4 +39,4 @@ class Leave(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
-        return f"{self.employee} - {self.leave_type} - {self.start_date} - {self.leave_type} - {self.start_date}"
+        return f"{self.employee} - {self.leave_type} -  {self.leave_type} - {self.start_date}"

@@ -25,7 +25,9 @@ class LeaveSerializer(serializers.ModelSerializer):
             "updated_at"
         ]
     def validate(self, data):
-        if data["end_date"] < data["start_date"]:
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+        if start_date and end_date and end_date < start_date:
             raise serializers.ValidationError(
                 "End date must be greater than start date."
             )

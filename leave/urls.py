@@ -1,27 +1,31 @@
 from django.urls import path
+
 from .views import (
     LeaveListCreateView,
-    LeaveDetailView, LeaveManagementView,
+    LeaveDetailView,
+    LeaveManagementView,
 )
+
+
 urlpatterns = [
     path(
         "",
         LeaveListCreateView.as_view(),
-        name="Leave-List-Create"
+        name="leave-list-create",
     ),
     path(
         "manage/",
         LeaveManagementView.as_view(),
-        name="Leave-Management"
+        name="leave-management",
     ),
     path(
         "manage/<int:pk>/",
         LeaveManagementView.as_view(),
-        name="Leave-Management-Detail"
+        name="leave-management-detail",
     ),
     path(
         "<int:pk>/",
         LeaveDetailView.as_view(),
-        name="Leave-Detail"
-    )
+        name="leave-detail",
+    ),
 ]
