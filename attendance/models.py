@@ -1,5 +1,5 @@
 from django.db import models
-from accounts.models import User
+from django.conf import settings
 
 class Attendance(models.Model):
     STATUS_CHOICES = [
@@ -9,7 +9,7 @@ class Attendance(models.Model):
         ("half_day", "Half Day"),
     ]
     employee = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="attendance"
     )
