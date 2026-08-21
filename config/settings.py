@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'attendance',
     'leave',
     'announcements',
+    'notifications',
 ]
 
 MIDDLEWARE = [
