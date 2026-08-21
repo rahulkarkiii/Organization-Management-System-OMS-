@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class Department(models.Model):
     name = models.CharField(
@@ -10,6 +11,15 @@ class Department(models.Model):
         max_length=255,
         blank=True
     )
+    manager = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="managed_department",
+        limit_choices_to={"role": "manager"},
+    )
+
     is_active = models.BooleanField(
         default=True
     )
