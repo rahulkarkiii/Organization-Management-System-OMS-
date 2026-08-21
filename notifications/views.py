@@ -1,41 +1,58 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from accounts.models import User
+from departments.models import Department
+from employees.models import Employee
+
 from .models import Notification
 from .serializers import NotificationSerializer
 
 
 class NotificationListCreateView(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self, request):
+        notifications = Notification.objects.select_related(
+            "recipient",
+        )
+
+        if request.user.role == "admin":
+            return notifications.all()
+
+        return notifications.filter(
+            recipient=request.user,
+        )
 
     def get(self, request):
-        if request.user.role == "admin":
-            notifications = Notification.objects.all()
-
-        else:
-            notifications = Notification.objects.filter(
-                recipient=request.user
-            )
+        notifications = self.get_queryset(request)
 
         serializer = NotificationSerializer(
             notifications,
-            many=True
+            many=True,
         )
 
-        return Response(serializer.data)
-
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
 
     def post(self, request):
-        if request.user.role != "admin":
+        user = request.user
+
+        if user.role == "employee":
             return Response(
                 {
-                    "error": "Only admins can create notifications."
+                    "error": (
+                        "Employees are not allowed "
+                        "to create notifications."
+                    )
                 },
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         recipient_id = request.data.get("recipient")
@@ -45,130 +62,201 @@ class NotificationListCreateView(APIView):
                 {
                     "error": "Recipient ID is required."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         recipient = get_object_or_404(
             User,
-            pk=recipient_id
+            pk=recipient_id,
         )
+
+        if user.role == "manager":
+            if recipient.role != "employee":
+                return Response(
+                    {
+                        "error": (
+                            "Managers can only create "
+                            "notifications for employees."
+                        )
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            try:
+                managed_department = user.managed_department
+            except Department.DoesNotExist:
+                return Response(
+                    {
+                        "error": (
+                            "Manager is not assigned "
+                            "to a department."
+                        )
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            try:
+                employee = Employee.objects.get(
+                    user=recipient,
+                )
+            except Employee.DoesNotExist:
+                return Response(
+                    {
+                        "error": "Employee record not found."
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            if employee.department_id != managed_department.id:
+                return Response(
+                    {
+                        "error": (
+                            "You can only create notifications "
+                            "for employees in your department."
+                        )
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         serializer = NotificationSerializer(
-            data=request.data
+            data=request.data,
         )
 
-        if serializer.is_valid():
-
-            notification = serializer.save(
-                recipient=recipient
-            )
-
+        if not serializer.is_valid():
             return Response(
-                NotificationSerializer(
-                    notification
-                ).data,
-                status=status.HTTP_201_CREATED
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        notification = serializer.save(
+            recipient=recipient,
+        )
 
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+            NotificationSerializer(notification).data,
+            status=status.HTTP_201_CREATED,
         )
 
 
 class NotificationDetailView(APIView):
-    permission_classes = (IsAuthenticated,)
-
+    permission_classes = [IsAuthenticated]
 
     def get_notification(self, request, pk):
+        notifications = Notification.objects.select_related(
+            "recipient",
+        )
+
         if request.user.role == "admin":
             return get_object_or_404(
-                Notification,
-                pk=pk
+                notifications,
+                pk=pk,
             )
 
         return get_object_or_404(
-            Notification,
+            notifications,
             pk=pk,
-            recipient=request.user
+            recipient=request.user,
         )
 
-
     def get(self, request, pk):
-
         notification = self.get_notification(
             request,
-            pk
+            pk,
         )
 
         serializer = NotificationSerializer(
-            notification
+            notification,
         )
 
-        return Response(serializer.data)
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
 
-
-    def put(self, request, pk):
-
+    def patch(self, request, pk):
         notification = self.get_notification(
             request,
-            pk
+            pk,
         )
 
         if request.user.role != "admin":
-
             if set(request.data.keys()) != {"is_read"}:
                 return Response(
                     {
                         "error": (
-                            "You can only mark your notification "
-                            "as read or unread."
+                            "You can only mark your "
+                            "notification as read or unread."
                         )
                     },
-                    status=status.HTTP_403_FORBIDDEN
+                    status=status.HTTP_403_FORBIDDEN,
                 )
 
-            notification.is_read = request.data.get(
-                "is_read"
+            if not isinstance(
+                request.data.get("is_read"),
+                bool,
+            ):
+                return Response(
+                    {
+                        "error": (
+                            "is_read must be true or false."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            notification.is_read = request.data["is_read"]
+
+            notification.save(
+                update_fields=[
+                    "is_read",
+                    "updated_at",
+                ],
             )
 
-            notification.save()
-
             return Response(
-                NotificationSerializer(
-                    notification
-                ).data,
-                status=status.HTTP_200_OK
+                NotificationSerializer(notification).data,
+                status=status.HTTP_200_OK,
             )
 
         serializer = NotificationSerializer(
             notification,
-            data=request.data
+            data=request.data,
+            partial=True,
         )
 
-        if serializer.is_valid():
-
-            serializer.save()
-
+        if not serializer.is_valid():
             return Response(
-                serializer.data,
-                status=status.HTTP_200_OK
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
+        notification = serializer.save()
+
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+            NotificationSerializer(notification).data,
+            status=status.HTTP_200_OK,
         )
 
+    def put(self, request, pk):
+        return self.patch(request, pk)
 
     def delete(self, request, pk):
+        if request.user.role != "admin":
+            return Response(
+                {
+                    "error": "Only admins can delete notifications."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        notification = self.get_notification(
-            request,
-            pk
+        notification = get_object_or_404(
+            Notification,
+            pk=pk,
         )
+
         notification.delete()
 
         return Response(
-            status=status.HTTP_204_NO_CONTENT
+            status=status.HTTP_204_NO_CONTENT,
         )
+

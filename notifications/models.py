@@ -29,6 +29,10 @@ class Notification(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["recipient", "is_read"]),
+            models.Index(fields=["recipient", "created_at"]),
+        ]
 
     def __str__(self):
         return f"{self.recipient}: {self.title}"
